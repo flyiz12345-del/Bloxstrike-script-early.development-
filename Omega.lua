@@ -3,24 +3,21 @@ local _G,pE,tk={A=true,At=true,Ds=true,Sm=1,F=180,Wb=true,V=true,Ch=true,Sk=true
 
 task.wait(0.5)
 
--- // UI CONSTRUCTION (DOCK)
-local G=Instance.new("ScreenGui",LP.PlayerGui)G.Name="OmegaV18"G.IgnoreGuiInset=true
-local Dock=Instance.new("Frame",G)Dock.Size,Dock.Position,Dock.BackgroundColor3=UDim2.new(0,55,0,255),UDim2.new(0,10,0.5,-125),Color3.fromRGB(5,5,10)
+local G=Instance.new("ScreenGui",LP.PlayerGui)G.Name="OmegaV19"G.IgnoreGuiInset=true
+local Dock=Instance.new("Frame",G)Dock.Size,Dock.Position,Dock.BackgroundColor3=UDim2.new(0,55,0,250),UDim2.new(0,10,0.5,-125),Color3.fromRGB(5,5,10)
 Instance.new("UICorner",Dock).CornerRadius=UDim.new(0,12)
 local St=Instance.new("UIStroke",Dock)St.Color,St.Thickness=Color3.fromRGB(0,160,255),1.8
 
--- // FOV CIRCLE (Locked to Center)
 local Cir=Instance.new("Frame",G)Cir.Size,Cir.Position=UDim2.new(0,_G.F*2,0,_G.F*2),UDim2.new(0.5,-_G.F,0.5,-_G.F)
 Cir.BackgroundColor3,Cir.BackgroundTransparency,Cir.Visible=Color3.new(1,1,1),1,_G.Circ
 local CS=Instance.new("UIStroke",Cir)CS.Color,CS.Thickness,CS.Transparency=Color3.new(1,1,1),1.5,0.5
 Instance.new("UICorner",Cir).CornerRadius=UDim.new(1,0)
 
--- // TAB SYSTEM
 local function CreatePanel(y)
     local p=Instance.new("Frame",G)p.Size,p.Position,p.Visible=UDim2.new(0,150,0,140),UDim2.new(0,75,0.5,y),false
     p.BackgroundColor3=Color3.fromRGB(10,10,15)Instance.new("UICorner",p)
     Instance.new("UIStroke",p).Color=Color3.fromRGB(0,160,255)
-    Instance.new("UIListLayout",p).Padding,p.UIListLayout.HorizontalAlignment=UDim.new(0,6),1
+    local l=Instance.new("UIListLayout",p)l.Padding,l.HorizontalAlignment=UDim.new(0,6),1
     return p
 end
 local AimP,VisP,RageP=CreatePanel(-120),CreatePanel(-30),CreatePanel(60)
@@ -47,29 +44,46 @@ Opt("Aimbot","A",AimP)Opt("FOV Circle","Circ",AimP)Opt("Autoshoot","At",AimP)
 Opt("Chams","Ch",VisP)Opt("Skeletons","Sk",VisP)Opt("Tracers","Tr",VisP)
 Opt("Desync","Ds",RageP)Opt("Anti-Aim","Yw",RageP)Opt("UpsideDown","Up",RageP)
 
--- // VIRTUAL SHOOT ENGINE (Anti-PC Flip)
 local function VirtualShoot()
-    -- Use VirtualInputManager if executor supports it, else fall back to a safer click
     local vim = game:GetService("VirtualInputManager")
     if vim then
         vim:SendMouseButtonEvent(0, 0, 0, true, game, 0)
         task.wait(0.05)
         vim:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-    else
-        -- Safest fall back for "shit" executors
-        keypress(0x01) task.wait(0.05) keyrelease(0x01)
     end
 end
 
--- // TARGETING ENGINE
-local function getB(c)for _,n in{"Head","Torso"}do local p=c:FindFirstChild(n)if p then local r=Ray.new(C.CFrame.Position,(p.Position-C.CFrame.Position).Unit*500)local h=workspace:FindPartOnRayWithIgnoreList(r,{LP.Character,c})if not h or(_G.Wb and(h.Transparency>0.5 or h.Material==Enum.Material.Wood))then return p end end end end
+local function getB(c)for _,n in pairs({"Head","Torso"})do local p=c:FindFirstChild(n)if p then local r=Ray.new(C.CFrame.Position,(p.Position-C.CFrame.Position).Unit*500)local h=workspace:FindPartOnRayWithIgnoreList(r,{LP.Character,c})if not h or(_G.Wb and(h.Transparency>0.5 or h.Material==Enum.Material.Wood))then return p end end end end
 
 R.RenderStepped:Connect(function()
     local t,m,ct=nil,_G.F,Vector2.new(C.ViewportSize.X/2,C.ViewportSize.Y/2)tk=(tk or 0+1)%2
     Cir.Position=UDim2.new(0,ct.X-_G.F,0,ct.Y-_G.F)
-    
-    -- Anti-Aim
     local ch=LP.Character if ch and ch:FindFirstChild("HumanoidRootPart")then local hr,rj=ch.HumanoidRootPart,ch.HumanoidRootPart:FindFirstChild("RootJoint")if _G.Ds and tk==0 then hr.CFrame=hr.CFrame*CFrame.new(0,0,0.06)end if rj then local x=_G.Up and 90 or-90 if _G.Yw then rj.C0=CFrame.new(0,0,0)*CFrame.Angles(math.rad(x),0,math.rad(_G.Off+180))else rj.C0=CFrame.new(0,0,0)*CFrame.Angles(math.rad(-90),3.14,0)end end end
-
     for _,p in pairs(P:GetPlayers()) do
-        if p~=LP and p.Character and p.Character:
+        if p~=LP and p.Character and p.Character:FindFirstChild("Torso") then
+            if not pE[p] then pE[p]={h=Instance.new("Highlight",G),s={ht=L(),la=L(),ra=L(),ll=L(),rl=L()},tr=L(Color3.fromRGB(0,160,255))} end
+            local e,c=pE[p],p.Character
+            e.h.Enabled,e.h.Adornee,e.h.FillColor=_G.V and _G.Ch,c,Color3.new(0,1,0.5)
+            local ps,vis=C:WorldToViewportPoint(c.Torso.Position)
+            for _,s in pairs(e.s) do s.Visible=false end e.tr.Visible=false
+            if vis and _G.V then
+                if _G.Tr then draw(e.tr, Vector2.new(ct.X, C.ViewportSize.Y), Vector2.new(ps.X, ps.Y)) end
+                if _G.Sk then
+                    local function g(pt) local o=c:FindFirstChild(pt) if o then local oP,oV=C:WorldToViewportPoint(o.Position) if oV then return Vector2.new(oP.X,oP.Y) end end end
+                    local h,t0,la,ra,ll,rl=g("Head"),g("Torso"),g("Left Arm"),g("Right Arm"),g("Left Leg"),g("Right Leg")
+                    if h and t0 and la and ra and ll and rl then draw(e.s.ht,h,t0)draw(e.s.la,t0,la)draw(e.s.ra,t0,ra)draw(e.s.ll,t0,ll)draw(e.s.rl,t0,rl)end
+                end
+                local dist = (Vector2.new(ps.X, ps.Y) - ct).Magnitude
+                if dist < m then local b=getB(c) if b then t,m=b,dist end end
+            end
+        end
+    end
+    if _G.A and t then
+        C.CFrame = C.CFrame:Lerp(CFrame.lookAt(C.CFrame.Position, t.Position), 1/_G.Sm)
+        if _G.At then
+            local r=Ray.new(C.CFrame.Position,C.CFrame.LookVector*1000)
+            local h=workspace:FindPartOnRayWithIgnoreList(r,{LP.Character})
+            if h and h:IsDescendantOf(t.Parent) then VirtualShoot() end
+        end
+    end
+end)
