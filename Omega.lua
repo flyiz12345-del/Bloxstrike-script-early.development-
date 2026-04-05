@@ -1,70 +1,207 @@
-local P,R,C,LP,U=game:GetService("Players"),game:GetService("RunService"),workspace.CurrentCamera,game:GetService("Players").LocalPlayer,game:GetService("UserInputService")
-local _G,pE,tk={A=true,At=true,SA=true,Wb=true,Sm=1,F=180,V=true,Ch=true,Sk=true,Tr=true,Sp=false,Yw=false,Up=false,Off=180,Circ=true,Spd=60,Ws=false,Jp=false,Fl=false,Pd=true,Bv=800},{},0
+-- // OMEGA V5 - FINAL REVISION
+-- // Features: R6/R15 Auto-Detect, Draggable UI, Desync Dashboard, Rubber-Banding
 
-task.wait(0.5)
+local P = game:GetService("Players")
+local R = game:GetService("RunService")
+local C = workspace.CurrentCamera
+local LP = P.LocalPlayer
+local U = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
 
--- // UI SETUP
-local G=Instance.new("ScreenGui",LP.PlayerGui)G.Name="OmegaV33"G.IgnoreGuiInset=true
-local D=Instance.new("Frame",G)D.Size,D.Position,D.BackgroundColor3=UDim2.new(0,50,0,300),UDim2.new(0,10,0.5,-150),Color3.new(0,0,0)Instance.new("UICorner",D)local St=Instance.new("UIStroke",D)St.Color,St.Thickness=Color3.new(0,0.6,1),1.8
-local Cir=Instance.new("Frame",G)Cir.Size,Cir.Position,Cir.BackgroundTransparency,Cir.Visible=UDim2.new(0,_G.F*2,0,_G.F*2),UDim2.new(0.5,-_G.F,0.5,-_G.F),1,_G.Circ Instance.new("UIStroke",Cir).Color,Instance.new("UICorner",Cir).CornerRadius=Color3.new(1,1,1),UDim.new(1,0)
+-- // CONFIG
+local _G = {
+    A = true, At = true, F = 180, 
+    DesyncActive = false,
+    DesyncMode = "None", -- "Anchor", "Invisible", "Rubber"
+    StoredPos = nil,
+    Bv = 950
+}
+local jerkCounter = 0
 
--- // GHOST PILLAR
+-- // UNIVERSAL DRAGGING (Mobile + PC)
+local function makeDraggable(topbar, main)
+	local dragging, dragInput, dragStart, startPos
+	local function update(input)
+		local delta = input.Position - dragStart
+		main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+	topbar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = main.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	topbar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	U.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then update(input) end
+	end)
+end
+
+-- // RIG DETECTOR
+local function GetCenter(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+end
+
+-- // UI CONSTRUCTION
+local G = Instance.new("ScreenGui", LP.PlayerGui)
+G.Name = "Omega_Final"
+G.ResetOnSpawn = false
+
+-- Main Menu
+local Main = Instance.new("Frame", G)
+Main.Size, Main.Position, Main.BackgroundColor3 = UDim2.new(0, 185, 0, 280), UDim2.new(0.1, 0, 0.4, 0), Color3.new(0.03, 0.03, 0.03)
+Instance.new("UICorner", Main)
+local MainStroke = Instance.new("UIStroke", Main)
+MainStroke.Color, MainStroke.Thickness = Color3.new(0, 0.6, 1), 2
+
+local Header = Instance.new("TextLabel", Main)
+Header.Size, Header.Text = UDim2.new(1, 0, 0, 35), "OMEGA V5 [FINAL]"
+Header.BackgroundColor3, Header.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1)
+Header.Active = true
+Instance.new("UICorner", Header)
+makeDraggable(Header, Main)
+
+-- Status Bar
+local Status = Instance.new("TextLabel", Main)
+Status.Size, Status.Position = UDim2.new(1, 0, 0, 22), UDim2.new(0, 0, 1, 5)
+Status.Text, Status.BackgroundColor3, Status.TextColor3 = "Status: Synced", Color3.new(0,0,0), Color3.new(0,1,0)
+Instance.new("UICorner", Status)
+
+-- Desync Dashboard Sub-Menu
+local DSMenu = Instance.new("Frame", G)
+DSMenu.Size, DSMenu.Position, DSMenu.Visible = UDim2.new(0, 170, 0, 220), UDim2.new(0.5, -85, 0.5, -110), false
+DSMenu.BackgroundColor3 = Color3.new(0, 0, 0)
+Instance.new("UICorner", DSMenu)
+local DSStroke = Instance.new("UIStroke", DSMenu)
+DSStroke.Color = Color3.new(1, 0, 0)
+makeDraggable(DSMenu, DSMenu)
+
+-- // GHOST VISUAL
 local Ghost = Instance.new("Part", workspace)
-Ghost.Size,Ghost.Anchored,Ghost.CanCollide,Ghost.Transparency,Ghost.Material=Vector3.new(4,6,4),true,false,1,Enum.Material.ForceField
-Ghost.Color = Color3.fromRGB(0, 160, 255)
+Ghost.Name = "Omega_Anchor"
+Ghost.Size, Ghost.Anchored, Ghost.CanCollide = Vector3.new(4, 5, 2), true, false
+Ghost.Material, Ghost.Color, Ghost.Transparency = Enum.Material.Neon, Color3.new(1, 0, 0), 1
+local GhostHigh = Instance.new("Highlight", Ghost)
+GhostHigh.FillColor, GhostHigh.Enabled = Color3.new(1, 0, 0), false
 
-local function CreateP(y)
-    local p=Instance.new("Frame",G)p.Size,p.Position,p.Visible,p.BackgroundColor3=UDim2.new(0,140,0,230),UDim2.new(0,65,0.5,y),false,Color3.new(0,0,0)Instance.new("UICorner",p)
-    Instance.new("UIListLayout",p).Padding,p.UIListLayout.HorizontalAlignment=UDim.new(0,4),1 return p 
-end
-local AimP,VisP,RageP=CreateP(-140),CreateP(-40),CreateP(50)
+-- // DESYNC DASHBOARD LOGIC
+local function ApplyDesync(mode)
+    local root = GetCenter(LP.Character)
+    if not root then return end
 
-local function L(col)local l=Instance.new("Frame",G)l.BackgroundColor3,l.BorderSizePixel,l.Visible=col or Color3.new(1,1,1),0,false return l end
-local function draw(l,p1,p2)local d=(p1-p2).Magnitude l.Size,l.Position,l.Rotation,l.Visible=UDim2.new(0,d,0,1),UDim2.new(0,(p1.X+p2.X)/2-d/2,0,(p1.Y+p2.Y)/2),math.deg(math.atan2(p2.Y-p1.Y,p2.X-p1.X)),true end
-local function Ico(s,pn,y)local b=Instance.new("TextButton",D)b.Size,b.Position,b.Text,b.BackgroundColor3,b.TextColor3=UDim2.new(0,34,0,34),UDim2.new(0.5,-17,0,y),s,Color3.new(0.1,0.1,0.1),Color3.new(1,1,1)Instance.new("UICorner",b)b.MouseButton1Click:Connect(function()AimP.Visible,VisP.Visible,RageP.Visible=false,false,false pn.Visible=not pn.Visible end)end
-local function Opt(n,v,p)local b=Instance.new("TextButton",p)b.Size,b.Text,b.BackgroundColor3,b.TextColor3=UDim2.new(0.9,0,0,25),n.." ["..(tostring(_G[v]):sub(1,1)):upper().."]",Color3.new(0.1,0.1,0.1),Color3.new(1,1,1)Instance.new("UICorner",b)b.MouseButton1Click:Connect(function()_G[v]=not _G[v]b.Text=n.." ["..(tostring(_G[v]):sub(1,1)):upper().."]" if v=="Circ" then Cir.Visible=_G[v] end end)end
-
-Ico("🎯",AimP,10)Ico("👁️",VisP,70)Ico("😡",RageP,130)Ico("-",G,200)
-
-Opt("Aimbot","A",AimP)Opt("Predict","Pd",AimP)Opt("Silent Aim","SA",AimP)Opt("Wallbang","Wb",AimP)Opt("Auto","At",AimP)Opt("Circle","Circ",AimP)
-Opt("Master ESP","V",VisP)Opt("Chams","Ch",VisP)Opt("Bones","Sk",VisP)Opt("Line","Tr",VisP)
-Opt("Fake Lag","Fl",RageP)Opt("Spinbot","Sp",RageP)Opt("Speed","Ws",RageP)Opt("Jump","Jp",RageP)Opt("Flip","Up",RageP)
-
--- // UNIVERSAL SHOOT ENGINE (Rivals Bypass)
-local function Shoot()
-    local v=game:GetService("VirtualInputManager")
-    if v then 
-        v:SendMouseButtonEvent(0,0,0,true,game,0)
-        task.wait(0.01)
-        v:SendMouseButtonEvent(0,0,0,false,game,0)
-    end 
-end
-
-local function getB(c)for _,n in{"Head","Torso","HumanoidRootPart"}do local p=c:FindFirstChild(n)if p then if not _G.Wb then local r=Ray.new(C.CFrame.Position,(p.Position-C.CFrame.Position).Unit*500)local h=workspace:FindPartOnRayWithIgnoreList(r,{LP.Character,c})if h and h.Transparency<0.5 then continue end end return p end end end
-
-local sA,fC=0,0
-R.RenderStepped:Connect(function()
-    local t,m,ct=nil,_G.F,Vector2.new(C.ViewportSize.X/2,C.ViewportSize.Y/2)tk=(tk or 0+1)%2 Cir.Position=UDim2.new(0,ct.X-_G.F,0,ct.Y-_G.F)
-    local ch=LP.Character if ch and ch:FindFirstChild("Humanoid")then 
-        local hr,rj,hu=ch.HumanoidRootPart,ch.HumanoidRootPart:FindFirstChild("RootJoint"),ch.Humanoid
-        hu.WalkSpeed=_G.Ws and 60 or 16 hu.JumpPower=_G.Jp and 100 or 50
-        if _G.Fl then fC=fC+1 Ghost.Transparency=0.5 if fC==1 then Ghost.CFrame=hr.CFrame end if fC<14 then settings().Network.IncomingReplicationLag=1000 else settings().Network.IncomingReplicationLag=0 fC=0 end else Ghost.Transparency=1 settings().Network.IncomingReplicationLag=0 end
-        if rj then local x=_G.Up and 90 or-90 if _G.Sp then sA=(sA+_G.Spd)%360 rj.C0=CFrame.new(0,0,0)*CFrame.Angles(math.rad(x),0,math.rad(sA+180))elseif _G.Yw then rj.C0=CFrame.new(0,0,0)*CFrame.Angles(math.rad(x),0,math.rad(_G.Off+180))end end 
+    if mode == "Delete" then
+        _G.DesyncActive = false
+        _G.DesyncMode = "None"
+        _G.StoredPos = nil
+        Ghost.Transparency = 1
+        GhostHigh.Enabled = false
+        settings().Network.IncomingReplicationLag = 0
+        Status.Text = "Status: SYNCED"
+        Status.TextColor3 = Color3.new(0, 1, 0)
+        return
     end
-    for _,p in pairs(P:GetPlayers())do if p~=LP and p.Character and p.Character:FindFirstChild("Torso")then if not pE[p] then pE[p]={h=Instance.new("Highlight",G),s={ht=L(),la=L(),ra=L(),ll=L(),rl=L()},tr=L(Color3.new(0,0.6,1))}end local e,c=pE[p],p.Character e.h.Enabled,e.h.Adornee,e.h.FillColor=_G.V and _G.Ch,c,Color3.new(0,1,0.5)local ps,vis=C:WorldToViewportPoint(c.Torso.Position)for _,s in pairs(e.s)do s.Visible=false end e.tr.Visible=false if vis and _G.V then if _G.Tr then draw(e.tr,Vector2.new(ct.X,C.ViewportSize.Y),Vector2.new(ps.X,ps.Y))end if _G.Sk then local function g(pt)local o=c:FindFirstChild(pt)if o then local oP,oV=C:WorldToViewportPoint(o.Position)if oV then return Vector2.new(oP.X,oP.Y)end end end local h,t0,la,ra,ll,rl=g("Head"),g("Torso"),g("Left Arm"),g("Right Arm"),g("Left Leg"),g("Right Leg")if h and t0 and la and ra and ll and rl then draw(e.s.ht,h,t0)draw(e.s.la,t0,la)draw(e.s.ra,t0,ra)draw(e.s.ll,t0,ll)draw(e.s.rl,t0,rl)end end if(Vector2.new(ps.X,ps.Y)-ct).Magnitude<m then local b=getB(c)if b then t,m=b,(Vector2.new(ps.X,ps.Y)-ct).Magnitude end end end end end
+
+    _G.StoredPos = root.CFrame
+    _G.DesyncActive = true
+    _G.DesyncMode = mode
     
-    if t then 
-        local aimPos = t.Position
-        if _G.Pd then 
-            local dist = (C.CFrame.Position - aimPos).Magnitude
-            aimPos = aimPos + (t.AssemblyLinearVelocity * (dist / _G.Bv))
+    if mode == "Anchor" or mode == "Rubber" then
+        Ghost.CFrame = _G.StoredPos
+        Ghost.Transparency = 0.4
+        GhostHigh.Enabled = true
+        Status.Text = "Mode: " .. mode:upper()
+        Status.TextColor3 = Color3.new(1, 0, 0)
+    elseif mode == "Invisible" then
+        Ghost.Transparency = 1
+        GhostHigh.Enabled = false
+        Status.Text = "Mode: INVISIBLE"
+        Status.TextColor3 = Color3.new(0.5, 0, 1)
+    end
+end
+
+-- // UI LIST LAYOUTS
+local function AddList(p)
+    local l = Instance.new("UIListLayout", p)
+    l.Padding, l.HorizontalAlignment, l.VerticalAlignment = UDim.new(0, 6), 1, 1
+    return l
+end
+AddList(Main).VerticalAlignment = Enum.VerticalAlignment.Top
+AddList(DSMenu)
+
+local function Btn(txt, parent, func)
+    local b = Instance.new("TextButton", parent)
+    b.Size, b.Text = UDim2.new(0.92, 0, 0, 38), txt
+    b.BackgroundColor3, b.TextColor3 = Color3.new(0.12, 0.12, 0.12), Color3.new(1, 1, 1)
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(func)
+    return b
+end
+
+-- // POPULATE MENUS
+Btn("Toggle Aimbot", Main, function() _G.A = not _G.A end)
+Btn("Toggle AutoShoot", Main, function() _G.At = not _G.At end)
+local OpenDS = Btn("DESYNC DASHBOARD", Main, function() DSMenu.Visible = not DSMenu.Visible end)
+OpenDS.TextColor3 = Color3.new(1, 0, 0)
+
+Btn("Anchor (Static)", DSMenu, function() ApplyDesync("Anchor") DSMenu.Visible = false end)
+Btn("Rubber-Band (Jerk)", DSMenu, function() ApplyDesync("Rubber") DSMenu.Visible = false end)
+Btn("Invisible Desync", DSMenu, function() ApplyDesync("Invisible") DSMenu.Visible = false end)
+Btn("DELETE DESYNC", DSMenu, function() ApplyDesync("Delete") DSMenu.Visible = false end)
+Btn("CLOSE", DSMenu, function() DSMenu.Visible = false end)
+
+-- // MAIN RUNTIME
+R.RenderStepped:Connect(function()
+    local char = LP.Character
+    local root = char and GetCenter(char)
+    
+    if _G.DesyncActive and root then
+        if _G.DesyncMode == "Rubber" then
+            jerkCounter = jerkCounter + 1
+            if jerkCounter < 40 then
+                settings().Network.IncomingReplicationLag = 1000
+            elseif jerkCounter >= 40 and jerkCounter < 45 then
+                settings().Network.IncomingReplicationLag = 0 -- Flicker Forward
+            else
+                root.CFrame = _G.StoredPos -- Snap Back
+                settings().Network.IncomingReplicationLag = 1000
+                jerkCounter = 0
+            end
+        else
+            -- Standard Anchor / Invisible
+            settings().Network.IncomingReplicationLag = 1000
         end
-        
-        if _G.SA then 
-            if _G.At then Shoot()end 
-        elseif _G.A then 
-            C.CFrame=C.CFrame:Lerp(CFrame.lookAt(C.CFrame.Position, aimPos), 1/_G.Sm)
-            if _G.At then Shoot()end 
-        end 
+    end
+    
+    -- Combat Logic (Universal Check)
+    if _G.At and _G.A then
+        local target = nil
+        local center = Vector2.new(C.ViewportSize.X/2, C.ViewportSize.Y/2)
+        for _, p in pairs(P:GetPlayers()) do
+            if p ~= LP and p.Character then
+                local tRoot = GetCenter(p.Character)
+                if tRoot then
+                    local pos, vis = C:WorldToViewportPoint(tRoot.Position)
+                    if vis and (Vector2.new(pos.X, pos.Y) - center).Magnitude < _G.F then
+                        target = tRoot
+                        break
+                    end
+                end
+            end
+        end
+        if target then
+            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+            task.wait(0.04)
+            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        end
     end
 end)
+
+print("Omega V5 Universal Loaded - Draggable Enabled")
