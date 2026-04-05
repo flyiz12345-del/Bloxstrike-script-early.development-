@@ -1,0 +1,22 @@
+-- // OMEGA LOADER
+local function Load()
+    local RawURL = ""
+    
+    local success, scriptContent = pcall(function()
+        return game:HttpGet(RawURL, true)
+    end)
+    
+    if success and scriptContent then
+        local func, err = loadstring(scriptContent)
+        if func then
+            print("Omega V51: Loaded Successfully!")
+            func()
+        else
+            warn("Syntax Error in GitHub: " .. tostring(err))
+        end
+    else
+        warn("Failed to reach GitHub. Check your internet or link.")
+    end
+end
+
+Load()
