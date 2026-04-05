@@ -1,15 +1,22 @@
--- // OMEGA V5.5 - FINAL STABLE
+-- // OMEGA V6.1 - SIDEBAR (MOVEMENT FIX)
 local P, R, C, LP = game:GetService("Players"), game:GetService("RunService"), workspace.CurrentCamera, game:GetService("Players").LocalPlayer
 local U, VIM = game:GetService("UserInputService"), game:GetService("VirtualInputManager")
 
-local _G = { A = true, SA = true, At = true, F = 180, V = true, Ch = true, Tr = true, Sk = true, Sp = false, SpSpeed = 50, Ws = false, WsSpeed = 100, Fly = false, FlySpeed = 50, KA = false, KARange = 50, DesyncActive = false, DesyncMode = "None", StoredPos = nil }
+local _G = { 
+    A = true, SA = true, At = true, F = 180, 
+    V = true, Ch = true, Tr = true, Sk = true,
+    Sp = false, Ws = false, Fly = false, KA = false,
+    DesyncActive = false, DesyncMode = "None", StoredPos = nil 
+}
 local pE, jerkCounter = {}, 0
 
-local function makeDraggable(topbar, main)
+-- // UNIVERSAL DRAGGING (Fixed for Mobile Movement)
+local function makeDraggable(main)
     local dragging, dragInput, dragStart, startPos
-    topbar.InputBegan:Connect(function(input)
+    main.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging, dragStart, startPos = true, input.Position, main.Position
+            -- Ensures clicking the menu doesn't stop the joystick
             input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
         end
     end)
@@ -25,60 +32,95 @@ local function GetCenter(char)
     return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
 end
 
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaFinal"; G.ResetOnSpawn = false
-local Main = Instance.new("Frame", G); Main.Size, Main.Position, Main.BackgroundColor3 = UDim2.new(0, 185, 0, 400), UDim2.new(0.1, 0, 0.4, 0), Color3.new(0.03, 0.03, 0.03)
-Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.new(1, 0, 0)
+-- // UI SETUP
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV61"; G.ResetOnSpawn = false
 
-local Header = Instance.new("TextLabel", Main); Header.Size, Header.Text = UDim2.new(1, 0, 0, 35), "OMEGA V5.5 [RAGE]"; Header.BackgroundColor3, Header.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1); makeDraggable(Header, Main)
-local TabFrame = Instance.new("Frame", Main); TabFrame.Size, TabFrame.Position, TabFrame.BackgroundTransparency = UDim2.new(1, 0, 1, -40), UDim2.new(0, 0, 0, 40), 1
-local L1 = Instance.new("UIListLayout", TabFrame); L1.Padding, L1.HorizontalAlignment = UDim.new(0, 4), 1
+-- The Vertical Sidebar
+local Sidebar = Instance.new("Frame", G)
+Sidebar.Size, Sidebar.Position, Sidebar.BackgroundColor3 = UDim2.new(0, 50, 0, 250), UDim2.new(0, 20, 0.5, -125), Color3.new(0.05, 0.05, 0.05)
+Sidebar.Active = true -- Allows dragging
+Sidebar.Selectable = false -- Stops the "Mouse Mode" lock
+Instance.new("UICorner", Sidebar)
+Instance.new("UIStroke", Sidebar).Color = Color3.new(0, 0.7, 1)
+makeDraggable(Sidebar)
 
-local DSMenu = Instance.new("Frame", G); DSMenu.Size, DSMenu.Position, DSMenu.Visible = UDim2.new(0, 170, 0, 220), UDim2.new(0.5, -85, 0.5, -110), false; DSMenu.BackgroundColor3 = Color3.new(0, 0, 0); makeDraggable(DSMenu, DSMenu)
-local Ghost = Instance.new("Part", workspace); Ghost.Name = "Omega_Anchor"; Ghost.Size, Ghost.Anchored, Ghost.CanCollide = Vector3.new(4, 5, 2), true, false; Ghost.Material, Ghost.Color, Ghost.Transparency = Enum.Material.Neon, Color3.new(1, 0, 0), 1
-local GhostHigh = Instance.new("Highlight", Ghost); GhostHigh.FillColor, GhostHigh.Enabled = Color3.new(1, 0, 0), false
-
-local function ApplyDesync(mode)
-    local root = GetCenter(LP.Character)
-    if mode == "Delete" then _G.DesyncActive, _G.DesyncMode, Ghost.Transparency, GhostHigh.Enabled = false, "None", 1, false settings().Network.IncomingReplicationLag = 0 return end
-    _G.StoredPos, _G.DesyncActive, _G.DesyncMode = root.CFrame, true, mode
-    Ghost.CFrame, Ghost.Transparency, GhostHigh.Enabled = _G.StoredPos, (mode == "Invisible" and 1 or 0.4), (mode ~= "Invisible")
+-- Fly-out Panel Builder
+local function CreatePanel(y)
+    local p = Instance.new("Frame", Sidebar)
+    p.Size, p.Position, p.Visible = UDim2.new(0, 140, 0, 220), UDim2.new(1, 10, 0, y), false
+    p.BackgroundColor3, p.Active, p.Selectable = Color3.new(0, 0, 0), true, false
+    Instance.new("UICorner", p)
+    Instance.new("UIStroke", p).Color = Color3.new(0, 0.7, 1)
+    Instance.new("UIListLayout", p).Padding = UDim.new(0, 4)
+    p.UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    return p 
 end
 
-local function draw(l, p1, p2)
-    local d = (p1 - p2).Magnitude
-    l.Size, l.Position, l.Rotation, l.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (p1.X + p2.X)/2 - d/2, 0, (p1.Y + p2.Y)/2), math.deg(math.atan2(p2.Y - p1.Y, p2.X - p1.X)), true
+local AimP, VisP, RageP = CreatePanel(-80), CreatePanel(0), CreatePanel(40)
+
+local function Ico(s, pn, y)
+    local b = Instance.new("TextButton", Sidebar)
+    b.Size, b.Position, b.Text = UDim2.new(0, 36, 0, 36), UDim2.new(0.5, -18, 0, y), s
+    b.BackgroundColor3, b.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1)
+    b.Modal = false -- CRITICAL FIX: Stops camera/joystick locking
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function() 
+        AimP.Visible, VisP.Visible, RageP.Visible = false, false, false
+        pn.Visible = not pn.Visible 
+    end)
 end
 
-local function Btn(txt, parent, func, toggleVar)
-    local b = Instance.new("TextButton", parent); b.Size, b.Text = UDim2.new(0.92, 0, 0, 30), txt; b.BackgroundColor3, b.TextColor3 = Color3.new(0.12, 0.12, 0.12), Color3.new(1, 1, 1)
-    Instance.new("UICorner", b); b.MouseButton1Click:Connect(function() func(); if toggleVar then b.TextColor3 = _G[toggleVar] and Color3.new(1, 0, 0) or Color3.new(1, 1, 1) end end); return b
+local function Opt(n, v, p)
+    local b = Instance.new("TextButton", p)
+    b.Size, b.Text = UDim2.new(0.9, 0, 0, 28), n
+    b.BackgroundColor3, b.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1)
+    b.Modal = false -- CRITICAL FIX
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function()
+        _G[v] = not _G[v]
+        b.TextColor3 = _G[v] and Color3.new(0, 1, 0) or Color3.new(1, 1, 1)
+    end)
 end
 
-Btn("Spinbot", TabFrame, function() _G.Sp = not _G.Sp end, "Sp")
-Btn("Speed Hack", TabFrame, function() _G.Ws = not _G.Ws end, "Ws")
-Btn("Fly Hack", TabFrame, function() _G.Fly = not _G.Fly end, "Fly")
-Btn("Kill Aura", TabFrame, function() _G.KA = not _G.KA end, "KA")
-Btn("Aimbot", TabFrame, function() _G.A = not _G.A end, "A")
-Btn("Silent Aim", TabFrame, function() _G.SA = not _G.SA end, "SA")
-Btn("Visuals (ESP)", TabFrame, function() _G.V = not _G.V end, "V")
-Btn("DESYNC PANEL", TabFrame, function() DSMenu.Visible = not DSMenu.Visible end)
+Ico("🎯", AimP, 15) Ico("👁️", VisP, 70) Ico("😡", RageP, 125)
 
-local L2 = Instance.new("UIListLayout", DSMenu); L2.Padding, L2.HorizontalAlignment = UDim.new(0, 5), 1
-Btn("Anchor", DSMenu, function() ApplyDesync("Anchor") end)
-Btn("Rubber-Band", DSMenu, function() ApplyDesync("Rubber") end)
-Btn("Invisible", DSMenu, function() ApplyDesync("Invisible") end)
-Btn("DELETE", DSMenu, function() ApplyDesync("Delete") end)
+Opt("Aimbot", "A", AimP) Opt("Silent Aim", "SA", AimP) Opt("AutoShoot", "At", AimP)
+Opt("Master ESP", "V", VisP) Opt("Chams", "Ch", VisP) Opt("Skeleton", "Sk", VisP) Opt("Tracers", "Tr", VisP)
+Opt("Spinbot", "Sp", RageP) Opt("Fly", "Fly", RageP) Opt("Speed", "Ws", RageP)
+Opt("Kill Aura", "KA", RageP)
 
+local DSB = Instance.new("TextButton", Sidebar)
+DSB.Size, DSB.Position, DSB.Text = UDim2.new(0, 36, 0, 36), UDim2.new(0.5, -18, 0, 180), "👻"
+DSB.BackgroundColor3, DSB.TextColor3, DSB.Modal = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1), false
+Instance.new("UICorner", DSB)
+DSB.MouseButton1Click:Connect(function()
+    _G.DesyncActive = not _G.DesyncActive
+    if _G.DesyncActive then
+        local root = GetCenter(LP.Character)
+        if root then _G.StoredPos = root.CFrame end
+        DSB.TextColor3 = Color3.new(1, 0, 0)
+    else
+        DSB.TextColor3 = Color3.new(1, 1, 1)
+        settings().Network.IncomingReplicationLag = 0
+    end
+end)
+
+-- // MAIN RUNTIME
 R.RenderStepped:Connect(function()
     local char = LP.Character
     local root = char and GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     local center = Vector2.new(C.ViewportSize.X/2, C.ViewportSize.Y/2)
     
+    if _G.DesyncActive and root then
+        jerkCounter = (jerkCounter + 1) % 60
+        settings().Network.IncomingReplicationLag = (jerkCounter < 50) and 1000 or 0
+    end
+
     if root and hum then
-        if _G.Sp then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(_G.SpSpeed), 0) end
-        hum.WalkSpeed = _G.Ws and _G.WsSpeed or 16
-        if _G.Fly then root.Velocity = Vector3.new(0, 1.5, 0) root.CFrame = root.CFrame + (hum.MoveDirection * (_G.FlySpeed * 0.05)) end
+        if _G.Sp then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(50), 0) end
+        hum.WalkSpeed = _G.Ws and 100 or 16
+        if _G.Fly then root.Velocity = Vector3.new(0, 1.5, 0); root.CFrame = root.CFrame + (hum.MoveDirection * 2.5) end
     end
 
     local target, minD = nil, _G.F
@@ -92,8 +134,8 @@ R.RenderStepped:Connect(function()
                 if vis then
                     local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
                     if dist < minD then target, minD = tR, dist end
-                    if _G.KA and root and (tR.Position - root.Position).Magnitude < _G.KARange then
-                        VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0) task.wait(0.01) VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+                    if _G.KA and root and (tR.Position - root.Position).Magnitude < 50 then
+                        VIM:SendMouseButtonEvent(0,0,0,true,game,0); task.wait(0.01); VIM:SendMouseButtonEvent(0,0,0,false,game,0)
                     end
                 end
             end
@@ -102,8 +144,6 @@ R.RenderStepped:Connect(function()
 
     if target and (_G.A or _G.SA) then
         if _G.A then C.CFrame = CFrame.new(C.CFrame.Position, target.Position) end
-        if _G.At then VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0) task.wait(0.01) VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0) end
+        if _G.At then VIM:SendMouseButtonEvent(0,0,0,true,game,0); task.wait(0.01); VIM:SendMouseButtonEvent(0,0,0,false,game,0) end
     end
 end)
-
-print("Omega V5.5 Fully Loaded!")
