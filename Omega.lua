@@ -1,4 +1,4 @@
--- // OMEGA V14 - STABILIZED VELOCITY DESYNC (SMOOTH MOVEMENT)
+-- // OMEGA V14 - STABILIZED VELOCITY DESYNC (SMOOTH & UPRIGHT)
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -12,7 +12,7 @@ local _G = {
     Sp = false, Ws = false, Fly = false, KA = false,
     DesyncActive = false, DesyncMode = "None", StoredPos = nil
 }
-local pE, lastDesyncTime = {}, 0
+local pE, jerkCounter, lastDesyncTime = {}, 0, 0
 
 -- // CLEANUP
 P.PlayerRemoving:Connect(function(player)
@@ -22,7 +22,7 @@ P.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- // UI DRAGGING UTILITY
+-- // DRAGGING UTILITY
 local function makeDraggable(main)
     local dragging, dragInput, dragStart, startPos
     main.InputBegan:Connect(function(input)
@@ -138,26 +138,31 @@ function ApplyDesync(mode)
     Ghost.CFrame, Ghost.Transparency, GhostHigh.Enabled = _G.StoredPos or CFrame.new(), (mode == "Invisible" and 1 or 0.4), (mode ~= "Invisible")
 end
 
--- // THE STABILIZED PULSE ENGINE (FIXED JITTER)
+-- // THE PULSE ENGINE (FIXED RAGDOLL & JITTER)
 R.PreSimulation:Connect(function()
     local root = LP.Character and GetCenter(LP.Character)
     local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
     
     if _G.DesyncActive and root and hum then
-        -- Lower magnitude (320) prevents the "Teleport Back" rubber-band
-        local desyncVelocity = (_G.StoredPos.Position - root.Position).Unit * 320
+        local dist = (root.Position - _G.StoredPos.Position).Magnitude
         
-        if tick() - lastDesyncTime > 0.03 then 
-            root.AssemblyLinearVelocity = desyncVelocity
-            lastDesyncTime = tick()
-        else
-            -- Small downward force keeps movement grounded and smooth
-            root.AssemblyLinearVelocity = Vector3.new(0, -0.1, 0)
+        -- Prevent NaN error if distance is too small
+        if dist > 0.1 then
+            local desyncDir = (_G.StoredPos.Position - root.Position).Unit
+            jerkCounter = (jerkCounter + 1) % 3
+            
+            if jerkCounter == 0 then
+                -- Flick hitbox to ghost
+                root.AssemblyLinearVelocity = desyncDir * 320
+            else
+                -- Neutralize velocity for smooth client movement
+                root.AssemblyLinearVelocity = Vector3.new(0, 1.2, 0)
+            end
         end
         
-        -- Bypass Humanoid friction to stop the "shaking"
-        if hum:GetState() ~= Enum.HumanoidStateType.Physics then
-            hum:ChangeState(Enum.HumanoidStateType.Physics)
+        -- KEEP UPRIGHT (Prevents the ragdoll/falling over from your video)
+        if hum:GetState() == Enum.HumanoidStateType.Physics or hum:GetState() == Enum.HumanoidStateType.FallingDown then
+            hum:ChangeState(Enum.HumanoidStateType.Running)
         end
     end
 end)
@@ -168,7 +173,7 @@ R.RenderStepped:Connect(function()
     local root = GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-    -- Movement Rage (Updated to AssemblyLinearVelocity)
+    -- Movement Rage
     if root and hum then
         if _G.Sp then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(50), 0) end
         hum.WalkSpeed = _G.Ws and 100 or 16
@@ -178,14 +183,13 @@ R.RenderStepped:Connect(function()
         end
     end
 
-    -- Visuals (Classic Green/White)
+    -- Visuals (Complete ESP Logic)
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
             if not pE[p] then 
                 pE[p] = {
                     h = Instance.new("Highlight", G), 
-                    tr = (function() local f = Instance.new("Frame", G); f.BorderSizePixel, f.Visible = 0, false; f.BackgroundColor3 = Color3.new(1, 1, 1); return f end)(),
-                    sk = (function() local f = Instance.new("Frame", G); f.BorderSizePixel, f.Visible = 0, false; f.BackgroundColor3 = Color3.new(1, 1, 1); return f end)()
+                    tr = (function() local f = Instance.new("Frame", G); f.BorderSizePixel, f.Visible = 0, false; f.BackgroundColor3 = Color3.new(1, 1, 1); return f end)()
                 }
             end
             local e, tR = pE[p], GetCenter(p.Character)
@@ -194,9 +198,15 @@ R.RenderStepped:Connect(function()
                 e.h.Enabled, e.h.Adornee, e.h.FillColor = _G.Ch, p.Character, Color3.new(0, 1, 0)
                 if vis and _G.Tr then 
                     local d = (Vector2.new(center.X, C.ViewportSize.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                    e.tr.Size, e.tr.Position, e.tr.Rotation, e.tr.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (center.X + pos.X)/2 - d/2, 0, (C.ViewportSize.Y + pos.Y)/2 - 1.5/2), math.deg(math.atan2(pos.Y - C.ViewportSize.Y, pos.X - center.X)), true
+                    e.tr.Size = UDim2.new(0, d, 0, 1)
+                    e.tr.Position = UDim2.new(0, (center.X + pos.X)/2 - d/2, 0, (C.ViewportSize.Y + pos.Y)/2)
+                    e.tr.Rotation = math.deg(math.atan2(pos.Y - C.ViewportSize.Y, pos.X - center.X))
+                    e.tr.Visible = true
                 else e.tr.Visible = false end
-            else e.h.Enabled, e.tr.Visible = false, false end
+            else
+                e.h.Enabled = false
+                e.tr.Visible = false
+            end
         end
     end
 end)
