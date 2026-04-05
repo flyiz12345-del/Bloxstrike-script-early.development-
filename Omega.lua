@@ -1,12 +1,12 @@
--- // OMEGA V5.1 - FULL SUITE
+-- // OMEGA V5.2 - SILENT & SYNCED
 local P, R, C, LP = game:GetService("Players"), game:GetService("RunService"), workspace.CurrentCamera, game:GetService("Players").LocalPlayer
 local U, VIM = game:GetService("UserInputService"), game:GetService("VirtualInputManager")
 
 local _G = { 
-    A = true, At = true, F = 180, 
-    V = true, Ch = true, Tr = true, -- Visuals
+    A = true, SA = false, At = true, F = 180, 
+    V = true, Ch = true, Tr = true,
     DesyncActive = false, DesyncMode = "None", 
-    StoredPos = nil, Bv = 950 
+    StoredPos = nil 
 }
 local pE, jerkCounter = {}, 0
 
@@ -33,11 +33,11 @@ local function GetCenter(char)
 end
 
 -- // UI SETUP
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaFinal"; G.ResetOnSpawn = false
-local Main = Instance.new("Frame", G); Main.Size, Main.Position, Main.BackgroundColor3 = UDim2.new(0, 185, 0, 320), UDim2.new(0.1, 0, 0.4, 0), Color3.new(0.03, 0.03, 0.03)
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV52"; G.ResetOnSpawn = false
+local Main = Instance.new("Frame", G); Main.Size, Main.Position, Main.BackgroundColor3 = UDim2.new(0, 185, 0, 350), UDim2.new(0.1, 0, 0.4, 0), Color3.new(0.03, 0.03, 0.03)
 Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.new(0, 0.6, 1)
 
-local Header = Instance.new("TextLabel", Main); Header.Size, Header.Text = UDim2.new(1, 0, 0, 35), "OMEGA V5.1"; Header.BackgroundColor3, Header.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1); makeDraggable(Header, Main)
+local Header = Instance.new("TextLabel", Main); Header.Size, Header.Text = UDim2.new(1, 0, 0, 35), "OMEGA V5.2"; Header.BackgroundColor3, Header.TextColor3 = Color3.new(0.1, 0.1, 0.1), Color3.new(1, 1, 1); makeDraggable(Header, Main)
 local Status = Instance.new("TextLabel", Main); Status.Size, Status.Position = UDim2.new(1, 0, 0, 22), UDim2.new(0, 0, 1, 5); Status.Text, Status.TextColor3, Status.BackgroundColor3 = "Status: Synced", Color3.new(0, 1, 0), Color3.new(0,0,0)
 
 local DSMenu = Instance.new("Frame", G); DSMenu.Size, DSMenu.Position, DSMenu.Visible = UDim2.new(0, 170, 0, 220), UDim2.new(0.5, -85, 0.5, -110), false; DSMenu.BackgroundColor3 = Color3.new(0, 0, 0); makeDraggable(DSMenu, DSMenu)
@@ -59,28 +59,34 @@ local function ApplyDesync(mode)
     Status.Text, Status.TextColor3 = "Mode: "..mode:upper(), Color3.new(1, 0, 0)
 end
 
--- // DRAWING FUNCTION FOR TRACERS
+-- // DRAWING FUNCTION
 local function draw(l, p1, p2)
     local d = (p1 - p2).Magnitude
     l.Size, l.Position, l.Rotation, l.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (p1.X + p2.X)/2 - d/2, 0, (p1.Y + p2.Y)/2), math.deg(math.atan2(p2.Y - p1.Y, p2.X - p1.X)), true
 end
 
 -- // UI BUILDERS
-local function Btn(txt, parent, func)
-    local b = Instance.new("TextButton", parent); b.Size, b.Text = UDim2.new(0.92, 0, 0, 35), txt; b.BackgroundColor3, b.TextColor3 = Color3.new(0.12, 0.12, 0.12), Color3.new(1, 1, 1)
-    Instance.new("UICorner", b); b.MouseButton1Click:Connect(func); return b
+local function Btn(txt, parent, func, toggleVar)
+    local b = Instance.new("TextButton", parent); b.Size, b.Text = UDim2.new(0.92, 0, 0, 32), txt; b.BackgroundColor3, b.TextColor3 = Color3.new(0.12, 0.12, 0.12), Color3.new(1, 1, 1)
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function()
+        func()
+        if toggleVar then b.TextColor3 = _G[toggleVar] and Color3.new(0, 1, 0) or Color3.new(1, 1, 1) end
+    end)
+    return b
 end
 local L1, L2 = Instance.new("UIListLayout", Main), Instance.new("UIListLayout", DSMenu)
-L1.Padding, L1.HorizontalAlignment = UDim.new(0, 5), 1; L2.Padding, L2.HorizontalAlignment = UDim.new(0, 5), 1
+L1.Padding, L1.HorizontalAlignment = UDim.new(0, 4), 1; L2.Padding, L2.HorizontalAlignment = UDim.new(0, 4), 1
 
--- Main Menu Controls
-Btn("Toggle Aimbot", Main, function() _G.A = not _G.A end)
-Btn("Toggle ESP", Main, function() _G.V = not _G.V end)
-Btn("Toggle Chams", Main, function() _G.Ch = not _G.Ch end)
-Btn("Toggle Tracers", Main, function() _G.Tr = not _G.Tr end)
+-- Menu Buttons
+Btn("Aimbot (Cam Lock)", Main, function() _G.A = not _G.A end, "A")
+Btn("Silent Aim (FOV Hit)", Main, function() _G.SA = not _G.SA end, "SA")
+Btn("AutoShoot Toggle", Main, function() _G.At = not _G.At end, "At")
+Btn("Toggle ESP", Main, function() _G.V = not _G.V end, "V")
+Btn("Toggle Tracers", Main, function() _G.Tr = not _G.Tr end, "Tr")
 local OpenDS = Btn("DESYNC DASHBOARD", Main, function() DSMenu.Visible = not DSMenu.Visible end); OpenDS.TextColor3 = Color3.new(1, 0, 0)
 
--- Dashboard Controls
+-- Dashboard
 Btn("Anchor (Static)", DSMenu, function() ApplyDesync("Anchor"); DSMenu.Visible = false end)
 Btn("Rubber-Band (Jerk)", DSMenu, function() ApplyDesync("Rubber"); DSMenu.Visible = false end)
 Btn("Invisible Desync", DSMenu, function() ApplyDesync("Invisible"); DSMenu.Visible = false end)
@@ -102,7 +108,7 @@ R.RenderStepped:Connect(function()
         else settings().Network.IncomingReplicationLag = 1000 end
     end
     
-    -- ESP & Target Logic
+    -- ESP & Target Logic (Shared FOV Detection)
     local target, minD = nil, _G.F
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
@@ -124,11 +130,15 @@ R.RenderStepped:Connect(function()
         end
     end
 
-    -- Aimbot Execution
-    if target and _G.A then
-        local aimPos = target.Position
-        C.CFrame = CFrame.new(C.CFrame.Position, aimPos) -- Camera Lock
-        if _G.At then
+    -- Execution (Aimbot or Silent Aim)
+    if target then
+        -- Aimbot: Force Camera to Target
+        if _G.A then
+            C.CFrame = CFrame.new(C.CFrame.Position, target.Position)
+        end
+        
+        -- AutoShoot: Fires if Aimbot is on OR Silent Aim is on (Reacts the same way)
+        if _G.At and (_G.A or _G.SA) then
             VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
             task.wait(0.04)
             VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
