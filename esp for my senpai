@@ -1,0 +1,152 @@
+local P = game:GetService("Players")
+local R = game:GetService("RunService")
+local C = workspace.CurrentCamera
+local LP = P.LocalPlayer
+
+local D = {}
+
+local function GL()
+    local l = Drawing.new("Line")
+    l.Visible = false
+    l.From = Vector2.new(0, 0)
+    l.To = Vector2.new(0, 0)
+    l.Color = Color3.new(1, 1, 1)
+    l.Thickness = 1.5
+    l.Transparency = 1
+    return l
+end
+
+local function GJ(char)
+    local h = char:FindFirstChildOfClass("Humanoid")
+    local j = {}
+    if h and h.RigType == Enum.HumanoidRigType.R15 then
+        j = {
+            {"Head", "UpperTorso"},
+            {"UpperTorso", "LowerTorso"},
+            {"UpperTorso", "LeftUpperArm"},
+            {"LeftUpperArm", "LeftLowerArm"},
+            {"UpperTorso", "RightUpperArm"},
+            {"RightUpperArm", "RightLowerArm"},
+            {"LowerTorso", "LeftUpperLeg"},
+            {"LeftUpperLeg", "LeftLowerLeg"},
+            {"LowerTorso", "RightUpperLeg"},
+            {"RightUpperLeg", "RightLowerLeg"}
+        }
+    else
+        j = {
+            {"Head", "Torso"},
+            {"Torso", "Left Arm"},
+            {"Torso", "Right Arm"},
+            {"Torso", "Left Leg"},
+            {"Torso", "Right Leg"}
+        }
+    end
+    return j
+end
+
+local function AE(p)
+    if p == LP then 
+        return 
+    end
+    local d = {}
+    d.H = Instance.new("Highlight")
+    d.H.FillColor = Color3.new(0, 1, 0)
+    d.H.OutlineColor = Color3.new(1, 1, 1)
+    d.H.FillTransparency = 0.5
+    d.H.Parent = game:GetService("CoreGui")
+    
+    d.T = Drawing.new("Line")
+    d.T.Visible = false
+    d.T.Color = Color3.new(1, 1, 1)
+    d.T.Thickness = 1
+    
+    d.B = Drawing.new("Square")
+    d.B.Visible = false
+    d.B.Color = Color3.new(1, 1, 1)
+    d.B.Thickness = 1
+    d.B.Filled = false
+    
+    d.S = {}
+    for i = 1, 12 do
+        table.insert(d.S, GL())
+    end
+    D[p] = d
+end
+
+local function RE(p)
+    local d = D[p]
+    if d then
+        if d.H then d.H:Destroy() end
+        if d.T then d.T:Remove() end
+        if d.B then d.B:Remove() end
+        for _, l in pairs(d.S) do
+            l:Remove()
+        end
+        D[p] = nil
+    end
+end
+
+for _, p in pairs(P:GetPlayers()) do
+    AE(p)
+end
+
+P.PlayerAdded:Connect(AE)
+P.PlayerRemoving:Connect(RE)
+
+R.RenderStepped:Connect(function()
+    for p, d in pairs(D) do
+        local char = p.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if char and root then
+            local rP, vis = C:WorldToViewportPoint(root.Position)
+            d.H.Adornee = char
+            d.H.Enabled = true
+            if vis then
+                d.T.From = Vector2.new(C.ViewportSize.X / 2, C.ViewportSize.Y)
+                d.T.To = Vector2.new(rP.X, rP.Y)
+                d.T.Visible = true
+                
+                local tP = C:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0))
+                local bP = C:WorldToViewportPoint(root.Position + Vector3.new(0, -3.5, 0))
+                local h = math.abs(tP.Y - bP.Y)
+                local w = h / 2
+                d.B.Size = Vector2.new(w, h)
+                d.B.Position = Vector2.new(rP.X - w / 2, rP.Y - h / 2)
+                d.B.Visible = true
+
+                local j = GJ(char)
+                for i, pair in ipairs(j) do
+                    local p1 = char:FindFirstChild(pair[1])
+                    local p2 = char:FindFirstChild(pair[2])
+                    local l = d.S[i]
+                    if p1 and p2 and l then
+                        local v1, s1 = C:WorldToViewportPoint(p1.Position)
+                        local v2, s2 = C:WorldToViewportPoint(p2.Position)
+                        if s1 and s2 then
+                            l.From = Vector2.new(v1.X, v1.Y)
+                            l.To = Vector2.new(v2.X, v2.Y)
+                            l.Visible = true
+                        else
+                            l.Visible = false
+                        end
+                    else
+                        if l then l.Visible = false end
+                    end
+                end
+            else
+                d.T.Visible = false
+                d.B.Visible = false
+                for _, l in pairs(d.S) do
+                    l.Visible = false
+                end
+            end
+        else
+            d.H.Enabled = false
+            d.T.Visible = false
+            d.B.Visible = false
+            for _, l in pairs(d.S) do
+                l.Visible = false
+            end
+        end
+    end
+end)
