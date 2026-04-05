@@ -1,6 +1,6 @@
 -- // OMEGA LOADER
 local function Load()
-    local RawURL = ""
+    local RawURL = "https://raw.githubusercontent.com/flyiz12345-del/Bloxstrike-script-early.development-/refs/heads/main/Omega.lua"
     
     local success, scriptContent = pcall(function()
         return game:HttpGet(RawURL, true)
