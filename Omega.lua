@@ -1,4 +1,4 @@
--- // OMEGA V11 - TRUE SERVER DESYNC (POLISHED)
+-- // OMEGA V12 - GHOST WALK (MOVEMENT FIXED)
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -10,7 +10,7 @@ local _G = {
     A = true, SA = true, F = 180, 
     V = true, Ch = true, Tr = true, Sk = true,
     Sp = false, Ws = false, Fly = false, KA = false,
-    DesyncActive = false, DesyncMode = "None", StoredPos = nil 
+    DesyncActive = false, DesyncMode = "None", StoredPos = nil, RealPos = nil
 }
 local pE, jerkCounter = {}, 0
 
@@ -46,9 +46,9 @@ local function GetCenter(char)
 end
 
 -- // UI SETUP
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV11"; G.ResetOnSpawn = false
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV12"; G.ResetOnSpawn = false
 
--- GHOST EMOJI (MINIMIZED)
+-- GHOST EMOJI
 local MiniGhost = Instance.new("TextButton", G)
 MiniGhost.Size, MiniGhost.Position = UDim2.new(0, 45, 0, 45), UDim2.new(0.5, 0, 0.1, 0)
 MiniGhost.Text, MiniGhost.TextSize, MiniGhost.Visible = "👻", 25, false
@@ -126,13 +126,12 @@ Opt("Aimbot", "A", AimP) Opt("Silent Aim", "SA", AimP)
 Opt("Master ESP", "V", VisP) Opt("Green Chams", "Ch", VisP) Opt("White Skelly", "Sk", VisP) Opt("White Tracers", "Tr", VisP)
 Opt("Spinbot", "Sp", RageP) Opt("Fly Hack", "Fly", RageP) Opt("Speed Hack", "Ws", RageP) Opt("Kill Aura", "KA", RageP)
 
--- // GHOST VISUAL & TRUE DESYNC LOGIC
+-- // GHOST VISUAL
 local Ghost = Instance.new("Part", workspace); Ghost.Name = "Omega_Anchor"; Ghost.Size, Ghost.Anchored, Ghost.CanCollide = Vector3.new(4, 5, 2), true, false; Ghost.Material, Ghost.Color, Ghost.Transparency = Enum.Material.Neon, Color3.new(1, 0, 0), 1
 local GhostHigh = Instance.new("Highlight", Ghost); GhostHigh.FillColor, GhostHigh.Enabled = Color3.new(1, 0, 0), false
 
 function ApplyDesync(mode)
     local root = GetCenter(LP.Character)
-    jerkCounter = 0
     if mode == "Delete" then
         _G.DesyncActive, _G.DesyncMode, Ghost.Transparency, GhostHigh.Enabled = false, "None", 1, false
         return
@@ -148,15 +147,15 @@ R.RenderStepped:Connect(function()
     local root = GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-    -- TRUE OUTGOING DESYNC
+    -- // THE BLINK DESYNC (FIXED MOVEMENT)
     if _G.DesyncActive and root then
-        if _G.DesyncMode == "Anchor" or _G.DesyncMode == "Invisible" then
-            -- Force your body to the ghost for the server
-            root.CFrame = _G.StoredPos
-            root.Velocity = Vector3.new(0, 0.1, 0) -- Break tracking
-        elseif _G.DesyncMode == "Rubber" then
-            jerkCounter = (jerkCounter + 1) % 5
-            if jerkCounter == 0 then root.CFrame = _G.StoredPos end
+        jerkCounter = (jerkCounter + 1) % 3 -- High speed pulse
+        if jerkCounter == 0 then
+            _G.RealPos = root.CFrame -- Remember where you are actually walking
+            root.CFrame = _G.StoredPos -- Blink to ghost for the server
+            root.Velocity = Vector3.new(0, 0, 0)
+        else
+            if _G.RealPos then root.CFrame = _G.RealPos end -- Snap back so you can move
         end
     end
 
@@ -167,7 +166,7 @@ R.RenderStepped:Connect(function()
         if _G.Fly then root.Velocity = Vector3.new(0, 1.5, 0); root.CFrame = root.CFrame + (hum.MoveDirection * 2.5) end
     end
 
-    -- ESP Visuals (Green/White)
+    -- Visuals (Green/White Classic)
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
             if not pE[p] then 
@@ -193,7 +192,7 @@ R.RenderStepped:Connect(function()
         end
     end
 
-    -- Aimbot Target
+    -- Target Aimbot
     local target, minD = nil, _G.F
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
