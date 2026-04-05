@@ -1,4 +1,4 @@
--- // OMEGA V10 - MOBILE OPTIMIZED (NO AUTOSHOOT)
+-- // OMEGA V11 - TRUE SERVER DESYNC (POLISHED)
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -14,7 +14,7 @@ local _G = {
 }
 local pE, jerkCounter = {}, 0
 
--- // CLEANUP (Prevents Memory Leaks)
+-- // CLEANUP
 P.PlayerRemoving:Connect(function(player)
     if pE[player] then
         if pE[player].h then pE[player].h:Destroy() end
@@ -24,7 +24,7 @@ P.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- // UNIVERSAL DRAGGING (Mobile Friendly)
+-- // DRAGGING
 local function makeDraggable(main)
     local dragging, dragInput, dragStart, startPos
     main.InputBegan:Connect(function(input)
@@ -46,14 +46,14 @@ local function GetCenter(char)
 end
 
 -- // UI SETUP
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV10"; G.ResetOnSpawn = false
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV11"; G.ResetOnSpawn = false
 
--- MINIMIZED GHOST
+-- GHOST EMOJI (MINIMIZED)
 local MiniGhost = Instance.new("TextButton", G)
 MiniGhost.Size, MiniGhost.Position = UDim2.new(0, 45, 0, 45), UDim2.new(0.5, 0, 0.1, 0)
 MiniGhost.Text, MiniGhost.TextSize, MiniGhost.Visible = "👻", 25, false
 MiniGhost.BackgroundColor3, MiniGhost.BackgroundTransparency = Color3.new(0,0,0), 0.3
-MiniGhost.Modal, MiniGhost.Selectable = false, false -- MOBILE FIX
+MiniGhost.Modal, MiniGhost.Selectable = false, false
 Instance.new("UICorner", MiniGhost).CornerRadius = UDim.new(1, 0)
 makeDraggable(MiniGhost)
 
@@ -76,7 +76,7 @@ makeDraggable(DesyncWin)
 local MinBtn = Instance.new("TextButton", WinHeader)
 MinBtn.Size, MinBtn.Position = UDim2.new(0, 30, 0, 30), UDim2.new(1, -30, 0, 0)
 MinBtn.Text, MinBtn.TextColor3, MinBtn.BackgroundTransparency = "-", Color3.new(1,1,1), 1
-MinBtn.Modal, MinBtn.Selectable = false, false -- MOBILE FIX
+MinBtn.Modal, MinBtn.Selectable = false, false
 
 -- SIDEBAR
 local Sidebar = Instance.new("Frame", G)
@@ -112,7 +112,6 @@ local function Opt(n, v, p, func)
 end
 
 Ico("🎯", AimP, 15) Ico("👁️", VisP, 65) Ico("😡", RageP, 115) Ico("👻", DesyncWin, 165)
-
 MinBtn.MouseButton1Click:Connect(function() DesyncWin.Visible = false; MiniGhost.Visible = true end)
 MiniGhost.MouseButton1Click:Connect(function() MiniGhost.Visible = false; DesyncWin.Visible = true end)
 
@@ -127,7 +126,7 @@ Opt("Aimbot", "A", AimP) Opt("Silent Aim", "SA", AimP)
 Opt("Master ESP", "V", VisP) Opt("Green Chams", "Ch", VisP) Opt("White Skelly", "Sk", VisP) Opt("White Tracers", "Tr", VisP)
 Opt("Spinbot", "Sp", RageP) Opt("Fly Hack", "Fly", RageP) Opt("Speed Hack", "Ws", RageP) Opt("Kill Aura", "KA", RageP)
 
--- // GHOST VISUAL & DESYNC LOGIC
+-- // GHOST VISUAL & TRUE DESYNC LOGIC
 local Ghost = Instance.new("Part", workspace); Ghost.Name = "Omega_Anchor"; Ghost.Size, Ghost.Anchored, Ghost.CanCollide = Vector3.new(4, 5, 2), true, false; Ghost.Material, Ghost.Color, Ghost.Transparency = Enum.Material.Neon, Color3.new(1, 0, 0), 1
 local GhostHigh = Instance.new("Highlight", Ghost); GhostHigh.FillColor, GhostHigh.Enabled = Color3.new(1, 0, 0), false
 
@@ -136,34 +135,39 @@ function ApplyDesync(mode)
     jerkCounter = 0
     if mode == "Delete" then
         _G.DesyncActive, _G.DesyncMode, Ghost.Transparency, GhostHigh.Enabled = false, "None", 1, false
-        settings().Network.IncomingReplicationLag = 0 return
+        return
     end
     if root then _G.StoredPos = root.CFrame end
     _G.DesyncActive, _G.DesyncMode = true, mode
     Ghost.CFrame, Ghost.Transparency, GhostHigh.Enabled = _G.StoredPos or CFrame.new(), (mode == "Invisible" and 1 or 0.4), (mode ~= "Invisible")
 end
 
--- // MAIN RUNTIME
+-- // RENDER RUNTIME
 R.RenderStepped:Connect(function()
     local char, center = LP.Character, Vector2.new(C.ViewportSize.X/2, C.ViewportSize.Y/2)
     local root = GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-    -- Desync
+    -- TRUE OUTGOING DESYNC
     if _G.DesyncActive and root then
-        jerkCounter = (jerkCounter + 1) % 60
-        settings().Network.IncomingReplicationLag = (jerkCounter < 50) and 1000 or 0
-        if _G.DesyncMode == "Rubber" and jerkCounter > 55 and _G.StoredPos then root.CFrame = _G.StoredPos end
+        if _G.DesyncMode == "Anchor" or _G.DesyncMode == "Invisible" then
+            -- Force your body to the ghost for the server
+            root.CFrame = _G.StoredPos
+            root.Velocity = Vector3.new(0, 0.1, 0) -- Break tracking
+        elseif _G.DesyncMode == "Rubber" then
+            jerkCounter = (jerkCounter + 1) % 5
+            if jerkCounter == 0 then root.CFrame = _G.StoredPos end
+        end
     end
 
-    -- Movement
+    -- Movement Rage
     if root and hum then
         if _G.Sp then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(50), 0) end
         hum.WalkSpeed = _G.Ws and 100 or 16
-        if _G.Fly then root.Velocity = Vector3.new(0, 2, 0); root.CFrame = root.CFrame + (hum.MoveDirection * 2.5) end
+        if _G.Fly then root.Velocity = Vector3.new(0, 1.5, 0); root.CFrame = root.CFrame + (hum.MoveDirection * 2.5) end
     end
 
-    -- Visuals (White/Green Classic)
+    -- ESP Visuals (Green/White)
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
             if not pE[p] then 
@@ -189,7 +193,7 @@ R.RenderStepped:Connect(function()
         end
     end
 
-    -- Targeting
+    -- Aimbot Target
     local target, minD = nil, _G.F
     for _, p in pairs(P:GetPlayers()) do
         if p ~= LP and p.Character then
