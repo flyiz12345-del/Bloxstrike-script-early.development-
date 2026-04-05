@@ -1,4 +1,4 @@
--- // OMEGA V13 - BLINK-STEP (MOVEMENT RESOLVED)
+-- // OMEGA V14 - VELOCITY DESYNC (SMOOTH MOVEMENT)
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -44,7 +44,7 @@ local function GetCenter(char)
 end
 
 -- // UI SETUP
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV13"; G.ResetOnSpawn = false
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV14"; G.ResetOnSpawn = false
 
 local MiniGhost = Instance.new("TextButton", G)
 MiniGhost.Size, MiniGhost.Position = UDim2.new(0, 45, 0, 45), UDim2.new(0.5, 0, 0.1, 0)
@@ -136,23 +136,26 @@ function ApplyDesync(mode)
     Ghost.CFrame, Ghost.Transparency, GhostHigh.Enabled = _G.StoredPos or CFrame.new(), (mode == "Invisible" and 1 or 0.4), (mode ~= "Invisible")
 end
 
--- // RENDER RUNTIME
+-- // THE VELOCITY PULSE ENGINE
+R.Heartbeat:Connect(function()
+    local root = LP.Character and GetCenter(LP.Character)
+    if _G.DesyncActive and root then
+        -- We spike velocity instead of CFrame to keep movement smooth
+        jerkCounter = (jerkCounter + 1) % 4
+        if jerkCounter == 0 then
+            -- This makes the server see you at the ghost while you can still walk
+            root.Velocity = (_G.StoredPos.Position - root.Position) * 1000
+        else
+            root.Velocity = Vector3.new(0, 0.1, 0)
+        end
+    end
+end)
+
+-- // MAIN RENDER RUNTIME
 R.RenderStepped:Connect(function()
     local char, center = LP.Character, Vector2.new(C.ViewportSize.X/2, C.ViewportSize.Y/2)
     local root = GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-    -- // THE BLINK-STEP LOGIC
-    if _G.DesyncActive and root and _G.StoredPos then
-        jerkCounter = (jerkCounter + 1) % 12 -- Pulse every 12 frames
-        if jerkCounter == 0 then
-            -- Store current walk pos, snap to ghost for ONE frame
-            local original = root.CFrame
-            root.CFrame = _G.StoredPos
-            root.Velocity = Vector3.new(0, 0, 0)
-            -- Snap back happens automatically next frame because we stop forcing CFrame
-        end
-    end
 
     -- Movement Rage
     if root and hum then
@@ -175,31 +178,4 @@ R.RenderStepped:Connect(function()
                 if vis then
                     if _G.Tr then 
                         local d = (Vector2.new(center.X, C.ViewportSize.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                        e.tr.Size, e.tr.Position, e.tr.Rotation, e.tr.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (center.X + pos.X)/2 - d/2, 0, (C.ViewportSize.Y + pos.Y)/2), math.deg(math.atan2(pos.Y - C.ViewportSize.Y, pos.X - center.X)), true
-                    else e.tr.Visible = false end
-                    if _G.Sk and tH then
-                        local headPos = C:WorldToViewportPoint(tH.Position)
-                        local d = (Vector2.new(headPos.X, headPos.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                        e.sk.Size, e.sk.Position, e.sk.Rotation, e.sk.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (headPos.X + pos.X)/2 - d/2, 0, (headPos.Y + pos.Y)/2), math.deg(math.atan2(pos.Y - headPos.Y, pos.X - headPos.X)), true
-                    else e.sk.Visible = false end
-                else e.tr.Visible, e.sk.Visible = false, false end
-            else e.h.Enabled, e.tr.Visible, e.sk.Visible = false, false, false end
-        end
-    end
-
-    -- Target Aimbot
-    local target, minD = nil, _G.F
-    for _, p in pairs(P:GetPlayers()) do
-        if p ~= LP and p.Character then
-            local tR = GetCenter(p.Character)
-            if tR then
-                local pos, vis = C:WorldToViewportPoint(tR.Position)
-                if vis then
-                    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if dist < minD then target, minD = tR, dist end
-                end
-            end
-        end
-    end
-    if target and _G.A then C.CFrame = CFrame.new(C.CFrame.Position, target.Position) end
-end)
+                        e.tr.Size, e.tr.Position, e.tr.Rotation, e.tr.Visible = UDim2.new(0, d, 0, 1.5), UDim2.new(0, (center.X + pos.X)/2 - d/2, 0, (C.ViewportSize.Y + pos.Y
