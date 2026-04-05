@@ -1,4 +1,4 @@
--- // OMEGA V12 - GHOST WALK (MOVEMENT FIXED)
+-- // OMEGA V13 - BLINK-STEP (MOVEMENT RESOLVED)
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -10,16 +10,14 @@ local _G = {
     A = true, SA = true, F = 180, 
     V = true, Ch = true, Tr = true, Sk = true,
     Sp = false, Ws = false, Fly = false, KA = false,
-    DesyncActive = false, DesyncMode = "None", StoredPos = nil, RealPos = nil
+    DesyncActive = false, DesyncMode = "None", StoredPos = nil
 }
 local pE, jerkCounter = {}, 0
 
 -- // CLEANUP
 P.PlayerRemoving:Connect(function(player)
     if pE[player] then
-        if pE[player].h then pE[player].h:Destroy() end
-        if pE[player].tr then pE[player].tr:Destroy() end
-        if pE[player].sk then pE[player].sk:Destroy() end
+        for _, v in pairs(pE[player]) do if v and v.Destroy then v:Destroy() end end
         pE[player] = nil
     end
 end)
@@ -46,9 +44,8 @@ local function GetCenter(char)
 end
 
 -- // UI SETUP
-local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV12"; G.ResetOnSpawn = false
+local G = Instance.new("ScreenGui", LP.PlayerGui); G.Name = "OmegaV13"; G.ResetOnSpawn = false
 
--- GHOST EMOJI
 local MiniGhost = Instance.new("TextButton", G)
 MiniGhost.Size, MiniGhost.Position = UDim2.new(0, 45, 0, 45), UDim2.new(0.5, 0, 0.1, 0)
 MiniGhost.Text, MiniGhost.TextSize, MiniGhost.Visible = "👻", 25, false
@@ -57,7 +54,6 @@ MiniGhost.Modal, MiniGhost.Selectable = false, false
 Instance.new("UICorner", MiniGhost).CornerRadius = UDim.new(1, 0)
 makeDraggable(MiniGhost)
 
--- NEVERLOSE WINDOW
 local DesyncWin = Instance.new("Frame", G)
 DesyncWin.Size, DesyncWin.Position = UDim2.new(0, 180, 0, 200), UDim2.new(0.5, -90, 0.5, -100)
 DesyncWin.BackgroundColor3, DesyncWin.BorderSizePixel, DesyncWin.Visible = Color3.fromRGB(15, 15, 15), 0, false
@@ -78,7 +74,6 @@ MinBtn.Size, MinBtn.Position = UDim2.new(0, 30, 0, 30), UDim2.new(1, -30, 0, 0)
 MinBtn.Text, MinBtn.TextColor3, MinBtn.BackgroundTransparency = "-", Color3.new(1,1,1), 1
 MinBtn.Modal, MinBtn.Selectable = false, false
 
--- SIDEBAR
 local Sidebar = Instance.new("Frame", G)
 Sidebar.Size, Sidebar.Position, Sidebar.BackgroundColor3 = UDim2.new(0, 50, 0, 260), UDim2.new(0, 20, 0.5, -130), Color3.new(0.05, 0.05, 0.05)
 Sidebar.Active, Sidebar.Selectable = true, false
@@ -147,15 +142,15 @@ R.RenderStepped:Connect(function()
     local root = GetCenter(char)
     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-    -- // THE BLINK DESYNC (FIXED MOVEMENT)
-    if _G.DesyncActive and root then
-        jerkCounter = (jerkCounter + 1) % 3 -- High speed pulse
+    -- // THE BLINK-STEP LOGIC
+    if _G.DesyncActive and root and _G.StoredPos then
+        jerkCounter = (jerkCounter + 1) % 12 -- Pulse every 12 frames
         if jerkCounter == 0 then
-            _G.RealPos = root.CFrame -- Remember where you are actually walking
-            root.CFrame = _G.StoredPos -- Blink to ghost for the server
+            -- Store current walk pos, snap to ghost for ONE frame
+            local original = root.CFrame
+            root.CFrame = _G.StoredPos
             root.Velocity = Vector3.new(0, 0, 0)
-        else
-            if _G.RealPos then root.CFrame = _G.RealPos end -- Snap back so you can move
+            -- Snap back happens automatically next frame because we stop forcing CFrame
         end
     end
 
