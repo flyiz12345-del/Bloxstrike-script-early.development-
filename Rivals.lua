@@ -1,4 +1,4 @@
--- // SERVICES
+I'm-- // SERVICES
 local P = game:GetService("Players")
 local R = game:GetService("RunService")
 local C = workspace.CurrentCamera
@@ -7,19 +7,19 @@ local VIM = game:GetService("VirtualInputManager")
 
 -- // CONFIGURATION
 local _G = {
-    A = true,       -- Aimbot
-    At = true,      -- Auto Shoot
-    SA = true,      -- Silent Aim
-    Wb = true,      -- Wallbang
+    A = false,       -- Aimbot
+    At = false,      -- Auto Shoot
+    SA = false,      -- Silent Aim
+    Wb = false,      -- Wallbang
     F = 180,        -- FOV Circle Size
-    V = true,       -- Master ESP
-    Ch = true,      -- Chams
-    Sk = true,      -- Bones (Skeletons)
-    Tr = true,      -- Tracer Lines
+    V = false,       -- Master ESP
+    Ch = false,      -- Chams
+    Sk = false,      -- Bones (Skeletons)
+    Tr = false,      -- Tracer Lines
     Sp = false,     -- Spinbot
     Ws = false,     -- Speed
     Fl = false,     -- Desync / Fake Lag
-    Pd = true,      -- Prediction
+    Pd = false,      -- Prediction
     Bv = 900        -- Bullet Velocity (Adjust for game)
 }
 
